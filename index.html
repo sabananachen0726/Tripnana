@@ -483,20 +483,26 @@ let activePackFilter = 'all';
 
 // ─── 旅程 Home Screen ───
 function initApp() {
+  // 1. 初始化 Firebase 連線
   if (firebase.apps.length === 0) {
     db = firebase.firestore(firebase.initializeApp(FIREBASE_CONFIG));
-  } else { db = firebase.firestore(); }
+  } else { 
+    db = firebase.firestore(); 
+  }
 
-  // 檢查 URL 參數 ?trip=xxx
+  // 2. 檢查 URL 參數 ?trip=xxx
   const params = new URLSearchParams(window.location.search);
   const tripParam = params.get('trip');
 
+  // 3. ✨ 隔離分家邏輯：二選一，絕對不重複！
   if (tripParam) {
-    enterTrip(tripParam);
+    // 有參數：警衛帶你直接進雪梨或東京
+    enterTrip(tripParam); 
   } else {
-    loadTripList();
+    // 沒參數：乖乖待在首頁載入大卡片列表
+    loadTripList();       
   }
-}
+} // <--- 這裡才是整個 initApp 函式唯一且正確的結尾！
 
 function loadTripList() {
   document.getElementById('trip-home-screen').style.display = 'block';
@@ -575,16 +581,16 @@ window.lockTrip = lockTrip; window.unlockTrip = unlockTrip;
 
 // ─── 進入旅程 ───
 function enterTrip(tripId) {
-    db.collection('tripnana_trips').doc(tripId).get().then(doc => {
-        // 注意這裡改成沒有括號的 .exists
-        if(!doc.exists) { 
-            alert(`找不到旅程「${tripId}」`);
-            return;
-        }
-        const data = doc.data();
+  db.collection('tripnana_trips').doc(tripId).get().then(doc => {
+    // 1. 檢查相容模式下文件是否存在
+    if (!doc.exists) { 
+      alert(`找不到旅程「${tripId}」`);
+      return;
+    }
+    const data = doc.data();
 
-    if(data.locked) {
-      // 封存畫面
+    // 2. 封存畫面邏輯
+    if (data.locked) {
       document.getElementById('trip-home-screen').innerHTML = `
         <div class="max-w-md mx-auto px-5 pt-20 text-center">
           <div class="text-5xl mb-4">🔒</div>
@@ -596,29 +602,37 @@ function enterTrip(tripId) {
       return;
     }
 
+    // 3. ✨【核心鎖定】先卡死當前旅程的各項身分標籤（這是所有功能的保護傘）
     TRIP_ID = tripId;
     TRIP_META = data;
     TRIP_MEMBERS = data.members || [];
     CURRENCY = data.currency || 'A$';
     IS_LOCKED = data.locked || false;
 
-    // 更新 URL（不重新載入頁面）
+    // 4. 更新 URL 網址與網頁畫面切換
     const newUrl = `${window.location.pathname}?trip=${tripId}`;
     window.history.pushState({}, '', newUrl);
-
-    // 顯示主頁面
     document.getElementById('trip-home-screen').style.display = 'none';
     document.getElementById('trip-app').style.display = 'block';
 
-    // 更新 Header
+    // 5. 更新內頁頂部的 Header 資訊與成員顯示
     document.getElementById('trip-title-display').innerText = data.name;
     document.getElementById('trip-date-display').innerText = `${data.startDate || ''} → ${data.endDate || ''}`;
     document.getElementById('dash-members').innerText = TRIP_MEMBERS.join(', ');
 
-    // 初始化各功能
+    // 6. 依照當前旅程的成員與日期，初始化分帳表單與行程空格
     initBillForm();
     buildItineraryDaySlots();
-    streamHotel(); streamExpenses(); streamItinerary(); streamWishes(); streamFlights(); streamPackItems();
+
+    // 7. 🚀【全面分家】確認 TRIP_ID 綁定後，才依序去抓「各自獨立」的雲端資料
+    streamHotel();      // 抓飯店
+    streamExpenses();   // 抓分帳
+    streamItinerary();  // 抓行程
+    streamWishes();     // 抓許願
+    streamFlights();    // 抓航班
+    streamPackItems();  // 抓打包清單
+    
+    // 8. 抓取目的地天氣並切換到第一個分頁
     fetchWeather(data.city || 'Sydney');
     switchTab('tracker');
   });
