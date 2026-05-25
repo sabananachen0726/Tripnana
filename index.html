@@ -552,7 +552,7 @@ function createNewTrip() {
   if(!id || !name || members.length === 0) { alert('請填寫旅程 ID、名稱和成員'); return; }
 
   db.collection('tripnana_trips').doc(id).get().then(doc => {
-    if(doc.exists()) { alert(`旅程 ID「${id}」已存在，請換一個！`); return; }
+    if(doc.exists) { alert(`旅程 ID「${id}」已存在，請換一個！`); return; }
     db.collection('tripnana_trips').doc(id).set({
       name, city, startDate: start, endDate: end, currency, members,
       locked: false, createdAt: Date.now()
