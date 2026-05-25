@@ -633,7 +633,7 @@ function goHome() {
 window.goHome = goHome;
 
 // ─── 集合路徑（帶旅程 ID 隔離） ───
-function col(name) { return db.collection(`trips/${TRIP_ID}/${name}`); }
+function col(name) { return db.collection(`tripnana_trips/${TRIP_ID}/${name}`); }
 
 // ─── 語言切換 ───
 function toggleLanguage() { currentLang = currentLang === 'zh' ? 'en' : 'zh'; document.getElementById('btn-lang-toggle').innerText = currentLang === 'zh' ? '🌐 EN' : '🌐 中文'; }
