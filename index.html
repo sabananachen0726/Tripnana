@@ -1,0 +1,1091 @@
+
+
+cat > /home/claude/tripnana.html << 'ENDOFFILE'
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tripnana 🍌</title>
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <style>
+    input[type="date"],input[type="time"],input[type="datetime-local"]{-webkit-appearance:none;-moz-appearance:none;appearance:none;box-sizing:border-box!important;max-width:100%!important}
+    .collapse-body{transition:max-height .35s ease,opacity .25s ease;overflow:hidden}
+    .collapse-body.closed{max-height:0;opacity:0;pointer-events:none}
+    .collapse-body.open{max-height:9999px;opacity:1}
+    .vote-btn{transition:all .15s ease}
+    .vote-btn:active{transform:scale(.92)}
+    #trip-home-screen{position:fixed;inset:0;z-index:100;background:#fafafa;overflow-y:auto}
+    .trip-card{transition:transform .15s ease,box-shadow .15s ease}
+    .trip-card:active{transform:scale(.98)}
+    .weather-card{backdrop-filter:blur(8px)}
+    .pack-row{transition:background .15s}
+    .pack-row:active{background:#f9fafb}
+  </style>
+</head>
+<body class="bg-gray-50 text-slate-900 min-h-screen pb-32 font-sans antialiased">
+
+<!-- ═══════════════════════════════════════════
+     HOME SCREEN — 旅程選擇器
+═══════════════════════════════════════════ -->
+<div id="trip-home-screen">
+  <div class="max-w-md mx-auto px-5 pt-10 pb-32">
+    <!-- Brand -->
+    <div class="text-center mb-8">
+      <div class="text-4xl mb-2">🍌</div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900">Tripnana</h1>
+      <p class="text-xs text-gray-400 mt-1 font-medium">by Sabanana ✨ | 每一趟旅程都是回憶</p>
+    </div>
+
+    <!-- 我的旅程列表 -->
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-[10px] font-black tracking-widest uppercase text-gray-400">我的旅程</h2>
+      <button onclick="openNewTripModal()" type="button"
+        class="bg-slate-900 text-white text-[11px] font-bold px-4 py-2 rounded-full hover:bg-pink-500 transition">
+        + 新增旅程
+      </button>
+    </div>
+
+    <div id="trip-list-container" class="space-y-3 mb-6">
+      <div class="p-6 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-2xl">載入中...</div>
+    </div>
+
+    <!-- 新增旅程 Modal -->
+    <div id="new-trip-modal" class="bg-white border-2 border-pink-400 p-5 rounded-2xl shadow-xl space-y-3" style="display:none">
+      <h3 class="text-xs font-black uppercase text-pink-600">✨ 建立新旅程</h3>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">旅程 ID（英文＋數字，不能有空格）</label>
+        <input type="text" id="new-trip-id" placeholder="e.g. tokyo2027 / bali-girls" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        <p class="text-[9px] text-gray-400 mt-1">⚠️ 建立後無法更改，朋友用這個 ID 進入旅程</p>
+      </div>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">旅程名稱</label>
+        <input type="text" id="new-trip-name" placeholder="e.g. 雪梨五日遊 2026" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">目的地城市（天氣用）</label>
+        <input type="text" id="new-trip-city" placeholder="e.g. Sydney / Tokyo / Bali" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">出發日</label>
+          <input type="date" id="new-trip-start" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        </div>
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">回程日</label>
+          <input type="date" id="new-trip-end" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        </div>
+      </div>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">貨幣符號（分帳用）</label>
+        <input type="text" id="new-trip-currency" placeholder="e.g. A$ / ¥ / $" value="A$" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">成員名單（用逗號隔開）</label>
+        <input type="text" id="new-trip-members" placeholder="e.g. Sabrina, 中偉, 聖聖" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="createNewTrip()" type="button" class="flex-1 bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase">🍌 建立旅程</button>
+        <button onclick="document.getElementById('new-trip-modal').style.display='none'" type="button" class="bg-gray-100 text-gray-500 px-4 rounded-xl text-xs">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MAIN APP — 旅程內頁
+═══════════════════════════════════════════ -->
+<div id="trip-app" style="display:none">
+
+  <!-- HEADER -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-xs">
+    <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center gap-2">
+      <button onclick="goHome()" type="button" class="text-[10px] font-bold text-gray-400 hover:text-slate-900 flex items-center gap-1 shrink-0">
+        🍌 <span class="hidden sm:inline">Tripnana</span>
+      </button>
+      <div class="flex-1 min-w-0 text-center">
+        <h1 class="text-sm font-black tracking-tight text-slate-900 truncate" id="trip-title-display">旅程名稱</h1>
+        <p class="text-[9px] text-gray-400 font-mono" id="trip-date-display">日期</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="lock-badge" class="hidden text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-1 rounded-full">🔒 封存</span>
+        <button onclick="toggleLanguage()" type="button" id="btn-lang-toggle" class="text-[10px] font-black uppercase bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1.5 rounded-full cursor-pointer">🌐 EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 mt-4 space-y-5">
+
+    <!-- 天氣看板 -->
+    <section id="weather-section" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 text-white shadow-md">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-[9px] font-black tracking-widest uppercase text-slate-400 mb-1">目的地即時天氣</p>
+          <div id="weather-display" class="space-y-0.5">
+            <p class="text-xs text-slate-400">載入中...</p>
+          </div>
+        </div>
+        <div id="weather-icon-big" class="text-4xl">⛅</div>
+      </div>
+      <!-- 未來3天 -->
+      <div id="weather-forecast" class="mt-3 pt-3 border-t border-slate-700 grid grid-cols-3 gap-2"></div>
+    </section>
+
+    <!-- 住宿卡 -->
+    <section class="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm" onclick="openHotelEditor()">
+      <div class="flex justify-between items-start">
+        <div class="space-y-0.5">
+          <span class="text-[8px] font-black tracking-widest text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full uppercase border border-pink-100">🏠 住宿大本營</span>
+          <h3 class="text-sm font-bold text-slate-900 mt-1.5" id="hotel-display-name">點擊設定飯店名稱</h3>
+          <p class="text-xs text-gray-500 font-mono mt-0.5" id="hotel-display-address">目前尚未提供地址</p>
+        </div>
+        <span class="text-[10px] text-pink-500 font-bold bg-gray-50 px-2 py-1 rounded-lg">修改</span>
+      </div>
+      <div id="hotel-editor-panel" class="mt-3 pt-3 border-t border-gray-100 space-y-2" style="display:none" onclick="event.stopPropagation()">
+        <input type="text" id="input-hotel-name" placeholder="Hotel Name" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs">
+        <input type="text" id="input-hotel-address" placeholder="Full Address (For Uber/Maps)" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs">
+        <div class="flex gap-2">
+          <button onclick="saveHotelInfo()" class="flex-1 bg-slate-900 text-white font-bold py-2 rounded-xl text-xs uppercase">儲存</button>
+          <button onclick="closeHotelEditor()" class="bg-gray-100 text-gray-600 px-3 rounded-xl text-xs">取消</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── TAB 1: 分帳本 ─── -->
+    <div id="tab-tracker-content" class="space-y-4">
+      <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
+        <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400">本團總花費</p>
+        <p class="text-3xl font-black text-slate-900 mt-1" id="dash-total">-- 0.00</p>
+        <p class="text-xs font-bold text-slate-500 mt-2">成員: <span id="dash-members"></span></p>
+      </div>
+
+      <section class="bg-white p-5 rounded-2xl border-2 border-slate-900 space-y-4 shadow-md">
+        <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+          <h3 class="text-xs font-black tracking-wider uppercase text-slate-900 flex items-center gap-1.5">✍️ 快速記帳 / 分帳</h3>
+          <button onclick="clearBillForm()" type="button" class="text-xs text-gray-400 hover:text-slate-900">重填</button>
+        </div>
+        <input type="hidden" id="edit-id">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">店名</label>
+            <input type="text" id="edit-store" placeholder="e.g. Coles, Cafe" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900 focus:bg-white">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">誰付的錢</label>
+            <select id="edit-paid-by" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900"></select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">品項摘要</label>
+          <input type="text" id="edit-items" placeholder="e.g. 咖啡、晚餐" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        </div>
+        <div class="grid grid-cols-1 gap-3">
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">總金額</label>
+            <input type="number" id="edit-amount" step="0.01" value="0.00" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-pink-600 focus:bg-white">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">消費分類</label>
+            <input type="text" id="edit-cat" value="Food" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">消費日期</label>
+            <input type="date" id="edit-date" class="w-[calc(100%-4px)] box-border p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+          </div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+          <div class="flex justify-between items-center">
+            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">分帳人 & 金額</p>
+            <button onclick="calculateEqualSplit()" type="button" class="text-[10px] bg-pink-50 text-pink-600 border border-pink-100 px-2.5 py-1 rounded-md font-bold hover:bg-pink-100">按勾選平分</button>
+          </div>
+          <div id="split-shares-container" class="space-y-2"></div>
+          <div class="text-[10px] text-gray-500 pt-2 border-t border-gray-200 flex justify-between">
+            <span>已分配總計:</span>
+            <strong id="split-total-assigned" class="text-slate-900">-- 0.00</strong>
+          </div>
+        </div>
+        <button onclick="saveBillFormCloud()" type="button" class="w-full bg-slate-900 hover:bg-pink-600 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition shadow-sm">同步帳目至雲端</button>
+      </section>
+
+      <div class="space-y-2">
+        <h3 class="text-[10px] font-bold tracking-widest uppercase text-gray-400">雲端消費明細</h3>
+        <ul id="expense-list" class="space-y-2"></ul>
+      </div>
+
+      <!-- 對帳結算（可折疊） -->
+      <section class="bg-white border-2 border-dashed border-slate-300 rounded-2xl shadow-xs overflow-hidden">
+        <button onclick="toggleSettlement()" type="button" class="w-full p-5 flex justify-between items-center text-left">
+          <div>
+            <span class="text-[8px] font-black tracking-widest text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full uppercase border border-pink-100">FINAL SETTLEMENT</span>
+            <h3 class="text-sm font-black text-slate-900 mt-1.5">📊 本團動態對帳結算</h3>
+          </div>
+          <span id="settlement-chevron" class="text-gray-400 text-lg font-bold transition-transform duration-300">▾</span>
+        </button>
+        <div id="settlement-body" class="collapse-body closed">
+          <div class="px-5 pb-5 space-y-3">
+            <p class="text-[10px] text-gray-400 -mt-2 mb-3">綠色＝應收回，粉色＝需補繳</p>
+            <div id="settlement-matrix-box" class="space-y-2.5"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ─── TAB 2: 行程表 ─── -->
+    <div id="tab-itinerary-content" class="space-y-6" style="display:none">
+
+      <section class="bg-slate-900 text-white rounded-2xl p-4 shadow-sm space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-[10px] font-black tracking-widest uppercase text-amber-400">🛬 抵達班機看板</h3>
+          <button onclick="openFlightEditor('arrival')" class="text-[10px] bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-zinc-300 font-bold">更新</button>
+        </div>
+        <table class="w-full text-left text-xs">
+          <thead><tr class="text-zinc-500 text-[10px] uppercase font-bold"><th class="pb-2 w-1/4">成員</th><th class="pb-2 w-1/4">班機</th><th class="pb-2">降落時間</th></tr></thead>
+          <tbody id="arrival-display-list" class="divide-y divide-slate-800/50 text-zinc-200"></tbody>
+        </table>
+      </section>
+
+      <div id="flight-editor-box" class="bg-white border-2 border-amber-400 p-4 rounded-2xl space-y-3 shadow-xl" style="display:none">
+        <h4 id="flight-editor-title-text" class="text-xs font-black uppercase text-amber-600">更新航班</h4>
+        <input type="hidden" id="flight-type-mode" value="arrival">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">成員</label>
+            <select id="flight-member-select" class="w-full bg-gray-50 border border-gray-200 p-2.5 rounded-xl text-xs text-slate-900"></select>
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">班機號碼</label>
+            <input type="text" id="flight-input-no" placeholder="e.g. QF501" class="w-full bg-gray-50 border border-gray-200 p-2.5 rounded-xl text-xs text-slate-900">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">時間</label>
+          <input type="datetime-local" id="flight-input-time" class="w-[calc(100%-4px)] box-border bg-gray-50 border border-gray-200 p-2.5 rounded-xl text-xs text-slate-900 font-mono">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveFlightRowCloud()" class="flex-1 bg-slate-900 text-white font-bold py-2 rounded-xl text-xs uppercase">同步</button>
+          <button onclick="document.getElementById('flight-editor-box').style.display='none'" class="bg-gray-100 text-gray-500 px-4 rounded-xl text-xs">取消</button>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <h2 class="text-[10px] font-bold tracking-widest uppercase text-gray-400">動態行程時間表</h2>
+          <button onclick="openItineraryEditorModal(null)" type="button" class="bg-slate-900 text-white text-[11px] font-bold px-4 py-2 rounded-full hover:bg-pink-600 transition">+ 新增活動</button>
+        </div>
+
+        <section id="itinerary-editor" class="bg-white p-5 rounded-2xl border-2 border-pink-400 space-y-4 shadow-xl" style="display:none">
+          <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+            <h3 class="text-xs font-black tracking-wider uppercase text-pink-600" id="itin-editor-title">規劃活動卡片</h3>
+            <button onclick="closeItineraryEditor()" type="button" class="text-xs text-gray-400">取消</button>
+          </div>
+          <input type="hidden" id="edit-itin-id">
+          <div class="grid grid-cols-1 gap-3">
+            <div>
+              <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">日期</label>
+              <select id="edit-itin-date" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900"></select>
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">時間</label>
+              <input type="time" id="edit-itin-time" class="w-[calc(100%-4px)] box-border p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900 font-mono">
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">地點</label>
+              <input type="text" id="edit-itin-location" placeholder="e.g. Opera House" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">分類</label>
+              <select id="edit-itin-type" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+                <option value="Breakfast">🍳 Breakfast（早餐）</option>
+                <option value="Lunch">🍝 Lunch（午餐）</option>
+                <option value="Dinner">🥩 Dinner（晚餐）</option>
+                <option value="Activity">🗺️ Activity（活動景點）</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">備忘細節</label>
+            <textarea id="edit-itin-details" rows="3" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900" placeholder="填寫行程細節..."></textarea>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="saveItineraryNode()" type="button" class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl text-xs uppercase">同步至雲端</button>
+            <button id="btn-delete-itin" onclick="deleteItineraryNode()" type="button" class="bg-red-50 text-red-600 font-bold px-4 rounded-xl text-xs">🗑️</button>
+          </div>
+        </section>
+
+        <div id="itinerary-segmented-days" class="space-y-4"></div>
+      </div>
+
+      <section class="bg-slate-900 text-white rounded-2xl p-4 shadow-sm space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-[10px] font-black tracking-widest uppercase text-pink-400">🛫 離開班機看板</h3>
+          <button onclick="openFlightEditor('departure')" class="text-[10px] bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-zinc-300 font-bold">更新</button>
+        </div>
+        <table class="w-full text-left text-xs">
+          <thead><tr class="text-zinc-500 text-[10px] uppercase font-bold"><th class="pb-2 w-1/4">成員</th><th class="pb-2 w-1/4">班機</th><th class="pb-2">起飛時間</th></tr></thead>
+          <tbody id="departure-display-list" class="divide-y divide-slate-800/50 text-zinc-200"></tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- ─── TAB 3: 打包清單 ─── -->
+    <div id="tab-packing-content" class="space-y-4" style="display:none">
+      <div class="flex justify-between items-center">
+        <h2 class="text-[10px] font-bold tracking-widest uppercase text-gray-400">🎒 打包清單</h2>
+        <button onclick="togglePackForm()" type="button" class="bg-slate-900 text-white text-[11px] font-bold px-4 py-2 rounded-full hover:bg-pink-500 transition">+ 新增物品</button>
+      </div>
+
+      <!-- 新增物品表單 -->
+      <section id="pack-editor" class="bg-white p-5 rounded-2xl border-2 border-slate-900 space-y-3 shadow-md" style="display:none">
+        <h3 class="text-xs font-black uppercase text-slate-900">新增打包物品</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">物品名稱</label>
+            <input type="text" id="pack-item-name" placeholder="e.g. 插頭轉換器" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+          </div>
+          <div>
+            <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">負責人</label>
+            <select id="pack-item-owner" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900"></select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">分類</label>
+          <select id="pack-item-cat" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+            <option value="essential">⚡ 必帶</option>
+            <option value="medical">💊 醫藥急救</option>
+            <option value="clothes">👕 衣物</option>
+            <option value="electronics">🔌 3C 電器</option>
+            <option value="toiletries">🧴 盥洗保養</option>
+            <option value="docs">📄 證件文件</option>
+            <option value="other">📦 其他</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="savePackItem()" type="button" class="flex-1 bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase">加入清單</button>
+          <button onclick="togglePackForm()" type="button" class="bg-gray-100 text-gray-500 px-4 rounded-xl text-xs">取消</button>
+        </div>
+      </section>
+
+      <!-- 進度條 -->
+      <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+        <div class="flex justify-between items-center mb-2">
+          <p class="text-xs font-bold text-slate-900">整體打包進度</p>
+          <p class="text-xs font-black text-pink-600" id="pack-progress-text">0 / 0</p>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-2">
+          <div id="pack-progress-bar" class="bg-pink-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- 分類篩選 -->
+      <div class="flex gap-1.5 overflow-x-auto pb-1">
+        <button onclick="setPackFilter('all')" id="pack-filter-all" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-pink-200 bg-pink-500 text-white whitespace-nowrap">全部</button>
+        <button onclick="setPackFilter('essential')" id="pack-filter-essential" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">⚡ 必帶</button>
+        <button onclick="setPackFilter('medical')" id="pack-filter-medical" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">💊 醫藥</button>
+        <button onclick="setPackFilter('clothes')" id="pack-filter-clothes" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">👕 衣物</button>
+        <button onclick="setPackFilter('electronics')" id="pack-filter-electronics" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">🔌 3C</button>
+        <button onclick="setPackFilter('toiletries')" id="pack-filter-toiletries" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">🧴 盥洗</button>
+        <button onclick="setPackFilter('docs')" id="pack-filter-docs" type="button" class="pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">📄 證件</button>
+      </div>
+
+      <div id="pack-list-container" class="space-y-2"></div>
+    </div>
+
+    <!-- ─── TAB 4: 許願池 ─── -->
+    <div id="tab-wishlist-content" class="space-y-4" style="display:none">
+      <div class="flex justify-between items-center">
+        <h2 class="text-[10px] font-bold tracking-widest uppercase text-gray-400">🎁 旅伴許願池</h2>
+        <button onclick="toggleWishForm()" type="button" class="bg-pink-500 text-white text-[11px] font-bold px-4 py-2 rounded-full hover:bg-slate-900 transition shadow-sm">我要許願</button>
+      </div>
+
+      <section id="wish-editor-panel" class="bg-white p-5 rounded-2xl border-2 border-pink-400 space-y-4 shadow-xl" style="display:none">
+        <h3 class="text-xs font-black uppercase text-pink-600">填寫願望</h3>
+        <div class="space-y-2">
+          <input type="text" id="wish-field-title" placeholder="想要買或吃的？" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+          <select id="wish-field-cat" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+            <option value="restaurant">🍽️ 餐廳美食</option>
+            <option value="activity">🎯 活動體驗</option>
+            <option value="attraction">🗺️ 景點打卡</option>
+            <option value="shopping">🛍️ 購物血拼</option>
+            <option value="other">✨ 其他</option>
+          </select>
+          <input type="text" id="wish-field-link" placeholder="網頁或 IG 連結" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+          <input type="text" id="wish-field-img" placeholder="圖片網址（選填）" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+          <input type="text" id="wish-field-author" placeholder="你的名字" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveWishNodeToCloud()" type="button" class="flex-1 bg-slate-900 text-white font-bold py-2 rounded-xl text-xs uppercase">拋入許願池</button>
+          <button onclick="toggleWishForm()" type="button" class="bg-gray-100 text-gray-600 px-3 rounded-xl text-xs">取消</button>
+        </div>
+      </section>
+
+      <div class="flex gap-1.5 overflow-x-auto pb-1">
+        <button onclick="setWishFilter('all')" id="wish-filter-all" type="button" class="wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-pink-200 bg-pink-500 text-white whitespace-nowrap">全部</button>
+        <button onclick="setWishFilter('restaurant')" id="wish-filter-restaurant" type="button" class="wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">🍽️ 餐廳</button>
+        <button onclick="setWishFilter('activity')" id="wish-filter-activity" type="button" class="wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">🎯 活動</button>
+        <button onclick="setWishFilter('attraction')" id="wish-filter-attraction" type="button" class="wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">🗺️ 景點</button>
+        <button onclick="setWishFilter('shopping')" id="wish-filter-shopping" type="button" class="wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">🛍️ 購物</button>
+        <button onclick="setWishFilter('other')" id="wish-filter-other" type="button" class="wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-500 whitespace-nowrap">✨ 其他</button>
+      </div>
+
+      <div id="wishlist-cards-container" class="grid grid-cols-1 gap-3"></div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200 py-2 px-2 z-40 shadow-lg">
+    <div class="max-w-md mx-auto flex justify-around items-center">
+      <button onclick="switchTab('tracker')" type="button" id="nav-tab-tracker" class="flex-1 flex flex-col items-center gap-0.5 text-pink-600 cursor-pointer py-1">
+        <span class="text-base">🧾</span><span class="text-[9px] font-bold uppercase tracking-widest">分帳本</span>
+      </button>
+      <button onclick="switchTab('itinerary')" type="button" id="nav-tab-itinerary" class="flex-1 flex flex-col items-center gap-0.5 text-gray-400 cursor-pointer py-1">
+        <span class="text-base">🗓️</span><span class="text-[9px] font-bold uppercase tracking-widest">行程表</span>
+      </button>
+      <button onclick="switchTab('packing')" type="button" id="nav-tab-packing" class="flex-1 flex flex-col items-center gap-0.5 text-gray-400 cursor-pointer py-1">
+        <span class="text-base">🎒</span><span class="text-[9px] font-bold uppercase tracking-widest">打包</span>
+      </button>
+      <button onclick="switchTab('wishlist')" type="button" id="nav-tab-wishlist" class="flex-1 flex flex-col items-center gap-0.5 text-gray-400 cursor-pointer py-1">
+        <span class="text-base">🎁</span><span class="text-[9px] font-bold uppercase tracking-widest">許願池</span>
+      </button>
+    </div>
+  </nav>
+
+</div><!-- end #trip-app -->
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+// ─── Firebase 設定 ───
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDeP9DNQ66vSIxSfobvszadV-pRkT1pSoc",
+  authDomain: "samuel-st-rent.firebaseapp.com",
+  projectId: "samuel-st-rent",
+  storageBucket: "samuel-st-rent.firebasestorage.app",
+  messagingSenderId: "794096659826",
+  appId: "1:794096659826:web:d99d862c67c94ce56f41eb"
+};
+
+let db = null;
+let TRIP_ID = null;       // 當前旅程 ID
+let TRIP_META = {};       // 旅程設定（名稱、成員、貨幣等）
+let TRIP_MEMBERS = [];
+let CURRENCY = 'A$';
+let IS_LOCKED = false;
+
+let currentExpenses = [], currentItinerary = [], currentWishes = [], currentPackItems = [];
+let currentLang = 'zh';
+let settlementOpen = false;
+let activeWishFilter = 'all';
+let activePackFilter = 'all';
+
+// ─── 旅程 Home Screen ───
+function initApp() {
+  if (firebase.apps.length === 0) {
+    db = firebase.firestore(firebase.initializeApp(FIREBASE_CONFIG));
+  } else { db = firebase.firestore(); }
+
+  // 檢查 URL 參數 ?trip=xxx
+  const params = new URLSearchParams(window.location.search);
+  const tripParam = params.get('trip');
+
+  if (tripParam) {
+    enterTrip(tripParam);
+  } else {
+    loadTripList();
+  }
+}
+
+function loadTripList() {
+  document.getElementById('trip-home-screen').style.display = 'block';
+  document.getElementById('trip-app').style.display = 'none';
+
+  db.collection('tripnana_trips').orderBy('createdAt','desc').onSnapshot(snap => {
+    const container = document.getElementById('trip-list-container');
+    if(snap.empty) {
+      container.innerHTML = `<div class="p-6 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-2xl">還沒有旅程，點「新增旅程」開始你的第一趟！🍌</div>`;
+      return;
+    }
+    container.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const isLocked = d.locked || false;
+      return `
+        <div class="trip-card bg-white border ${isLocked ? 'border-amber-200' : 'border-gray-200'} rounded-2xl p-4 shadow-sm cursor-pointer"
+             onclick="enterTrip('${doc.id}')">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-sm font-black text-slate-900">${d.name || doc.id}</h3>
+                ${isLocked ? '<span class="text-[8px] font-black bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full">🔒 封存</span>' : '<span class="text-[8px] font-black bg-emerald-50 text-emerald-600 border border-emerald-200 px-1.5 py-0.5 rounded-full">● 進行中</span>'}
+              </div>
+              <p class="text-[10px] text-gray-400 font-mono">${d.startDate || ''} → ${d.endDate || ''}</p>
+              <p class="text-[10px] text-gray-500 mt-1">成員: ${(d.members || []).join(', ')}</p>
+            </div>
+            <span class="text-gray-300 text-lg">›</span>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex justify-between items-center">
+            <p class="text-[9px] text-gray-400 font-mono">ID: ${doc.id}</p>
+            ${!isLocked ? `<button onclick="event.stopPropagation(); lockTrip('${doc.id}')" type="button" class="text-[9px] text-amber-500 font-bold hover:text-amber-700">🔒 封存旅程</button>` : `<button onclick="event.stopPropagation(); unlockTrip('${doc.id}')" type="button" class="text-[9px] text-gray-400 font-bold hover:text-slate-900">解鎖</button>`}
+          </div>
+        </div>
+      `;
+    }).join('');
+  });
+}
+
+function openNewTripModal() {
+  document.getElementById('new-trip-modal').style.display = 'block';
+  document.getElementById('new-trip-modal').scrollIntoView({ behavior: 'smooth' });
+}
+
+function createNewTrip() {
+  const id = document.getElementById('new-trip-id').value.trim().toLowerCase().replace(/\s+/g,'-');
+  const name = document.getElementById('new-trip-name').value.trim();
+  const city = document.getElementById('new-trip-city').value.trim();
+  const start = document.getElementById('new-trip-start').value;
+  const end = document.getElementById('new-trip-end').value;
+  const currency = document.getElementById('new-trip-currency').value.trim() || 'A$';
+  const members = document.getElementById('new-trip-members').value.split(',').map(m=>m.trim()).filter(Boolean);
+
+  if(!id || !name || members.length === 0) { alert('請填寫旅程 ID、名稱和成員'); return; }
+
+  db.collection('tripnana_trips').doc(id).get().then(doc => {
+    if(doc.exists()) { alert(`旅程 ID「${id}」已存在，請換一個！`); return; }
+    db.collection('tripnana_trips').doc(id).set({
+      name, city, startDate: start, endDate: end, currency, members,
+      locked: false, createdAt: Date.now()
+    }).then(() => {
+      document.getElementById('new-trip-modal').style.display = 'none';
+      enterTrip(id);
+    });
+  });
+}
+
+function lockTrip(id) {
+  if(confirm(`確定封存旅程？封存後朋友分享連結將無法進入。`)) {
+    db.collection('tripnana_trips').doc(id).update({ locked: true });
+  }
+}
+function unlockTrip(id) {
+  db.collection('tripnana_trips').doc(id).update({ locked: false });
+}
+window.lockTrip = lockTrip; window.unlockTrip = unlockTrip;
+
+// ─── 進入旅程 ───
+function enterTrip(tripId) {
+  db.collection('tripnana_trips').doc(tripId).get().then(doc => {
+    if(!doc.exists()) { alert(`找不到旅程「${tripId}」`); return; }
+    const data = doc.data();
+
+    if(data.locked) {
+      // 封存畫面
+      document.getElementById('trip-home-screen').innerHTML = `
+        <div class="max-w-md mx-auto px-5 pt-20 text-center">
+          <div class="text-5xl mb-4">🔒</div>
+          <h2 class="text-xl font-black text-slate-900">${data.name}</h2>
+          <p class="text-sm text-gray-400 mt-2">此旅程已封存，無法進入</p>
+          <button onclick="window.location.href=window.location.pathname" type="button"
+            class="mt-6 bg-slate-900 text-white font-bold px-6 py-3 rounded-full text-sm">回到旅程列表</button>
+        </div>`;
+      return;
+    }
+
+    TRIP_ID = tripId;
+    TRIP_META = data;
+    TRIP_MEMBERS = data.members || [];
+    CURRENCY = data.currency || 'A$';
+    IS_LOCKED = data.locked || false;
+
+    // 更新 URL（不重新載入頁面）
+    const newUrl = `${window.location.pathname}?trip=${tripId}`;
+    window.history.pushState({}, '', newUrl);
+
+    // 顯示主頁面
+    document.getElementById('trip-home-screen').style.display = 'none';
+    document.getElementById('trip-app').style.display = 'block';
+
+    // 更新 Header
+    document.getElementById('trip-title-display').innerText = data.name;
+    document.getElementById('trip-date-display').innerText = `${data.startDate || ''} → ${data.endDate || ''}`;
+    document.getElementById('dash-members').innerText = TRIP_MEMBERS.join(', ');
+
+    // 初始化各功能
+    initBillForm();
+    buildItineraryDaySlots();
+    streamHotel(); streamExpenses(); streamItinerary(); streamWishes(); streamFlights(); streamPackItems();
+    fetchWeather(data.city || 'Sydney');
+    switchTab('tracker');
+  });
+}
+
+function goHome() {
+  TRIP_ID = null;
+  window.history.pushState({}, '', window.location.pathname);
+  document.getElementById('trip-home-screen').style.display = 'block';
+  document.getElementById('trip-app').style.display = 'none';
+}
+window.goHome = goHome;
+
+// ─── 集合路徑（帶旅程 ID 隔離） ───
+function col(name) { return db.collection(`trips/${TRIP_ID}/${name}`); }
+
+// ─── 語言切換 ───
+function toggleLanguage() { currentLang = currentLang === 'zh' ? 'en' : 'zh'; document.getElementById('btn-lang-toggle').innerText = currentLang === 'zh' ? '🌐 EN' : '🌐 中文'; }
+window.toggleLanguage = toggleLanguage;
+
+// ─── Tab 切換 ───
+function switchTab(tab) {
+  const tabs = ['tracker','itinerary','packing','wishlist'];
+  tabs.forEach(t => {
+    document.getElementById(`nav-tab-${t}`).className = `flex-1 flex flex-col items-center gap-0.5 ${t===tab?'text-pink-600':'text-gray-400'} cursor-pointer py-1`;
+    const el = document.getElementById(`tab-${t}-content`);
+    if(el) el.style.display = t===tab ? 'block' : 'none';
+  });
+}
+window.switchTab = switchTab;
+
+// ─── 天氣 (Open-Meteo 免費 API) ───
+const CITY_COORDS = {
+  sydney: [-33.87, 151.21], tokyo: [35.68, 139.69], osaka: [34.69, 135.50],
+  bali: [-8.34, 115.09], london: [51.51, -0.13], paris: [48.85, 2.35],
+  bangkok: [13.75, 100.52], singapore: [1.35, 103.82], seoul: [37.57, 126.98],
+  taipei: [25.04, 121.56], newyork: [40.71, -74.01], melbourne: [-37.81, 144.96]
+};
+const WX_CODE = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',77:'🌨',80:'🌦',81:'🌧',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
+const WX_DESC = {0:'晴朗',1:'大致晴',2:'局部多雲',3:'陰天',45:'有霧',51:'小毛毛雨',61:'小雨',63:'中雨',65:'大雨',71:'小雪',80:'陣雨',82:'大陣雨',95:'雷陣雨'};
+
+async function fetchWeather(city) {
+  const key = city.toLowerCase().replace(/\s+/g,'');
+  let coords = CITY_COORDS[key];
+  if(!coords) {
+    // 嘗試地名模糊匹配
+    for(const [k,v] of Object.entries(CITY_COORDS)) { if(key.includes(k)||k.includes(key)) { coords=v; break; } }
+  }
+  if(!coords) { document.getElementById('weather-display').innerHTML = `<p class="text-xs text-slate-400">${city} 天氣暫不支援</p>`; return; }
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords[0]}&longitude=${coords[1]}&current=temperature_2m,weathercode,windspeed_10m,relative_humidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=4`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cur = data.current;
+    const daily = data.daily;
+    const icon = WX_CODE[cur.weathercode] || '🌡️';
+    const desc = WX_DESC[cur.weathercode] || '';
+
+    document.getElementById('weather-icon-big').innerText = icon;
+    document.getElementById('weather-display').innerHTML = `
+      <p class="text-2xl font-black text-white">${Math.round(cur.temperature_2m)}°C <span class="text-base font-normal text-slate-300">${desc}</span></p>
+      <p class="text-[10px] text-slate-400 mt-0.5">💧 ${cur.relative_humidity_2m}% 濕度 · 🌬 ${Math.round(cur.windspeed_10m)} km/h</p>
+      <p class="text-[9px] text-slate-500 mt-0.5">${city}</p>
+    `;
+
+    // 未來3天
+    const days = ['今天','明天','後天'];
+    document.getElementById('weather-forecast').innerHTML = [0,1,2].map(i => `
+      <div class="text-center">
+        <p class="text-[9px] text-slate-500 font-bold">${days[i]}</p>
+        <p class="text-xl my-1">${WX_CODE[daily.weathercode[i]]||'🌡'}</p>
+        <p class="text-[10px] text-white font-bold">${Math.round(daily.temperature_2m_max[i])}°</p>
+        <p class="text-[9px] text-slate-400">${Math.round(daily.temperature_2m_min[i])}°</p>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('weather-display').innerHTML = `<p class="text-xs text-slate-400">天氣載入失敗</p>`;
+  }
+}
+
+// ─── Hotel ───
+function openHotelEditor() { document.getElementById('hotel-editor-panel').style.display='block'; }
+function closeHotelEditor() { document.getElementById('hotel-editor-panel').style.display='none'; }
+window.openHotelEditor = openHotelEditor; window.closeHotelEditor = closeHotelEditor;
+function saveHotelInfo() {
+  col('meta').doc('hotel').set({ name: document.getElementById('input-hotel-name').value.trim(), address: document.getElementById('input-hotel-address').value.trim() }).then(closeHotelEditor);
+}
+window.saveHotelInfo = saveHotelInfo;
+function streamHotel() {
+  col('meta').doc('hotel').onSnapshot(d => {
+    if(d.exists()) {
+      document.getElementById('hotel-display-name').innerText = d.data().name || '點擊設定飯店名稱';
+      document.getElementById('hotel-display-address').innerText = d.data().address || '目前尚未提供地址';
+      document.getElementById('input-hotel-name').value = d.data().name || '';
+      document.getElementById('input-hotel-address').value = d.data().address || '';
+    }
+  });
+}
+
+// ─── Flights ───
+function openFlightEditor(typeMode) {
+  const box = document.getElementById('flight-editor-box');
+  box.style.display = 'block';
+  document.getElementById('flight-type-mode').value = typeMode;
+  document.getElementById('flight-editor-title-text').innerText = typeMode==='arrival' ? '📝 更新抵達航班' : '📝 更新離開航班';
+  // 重建成員選單
+  document.getElementById('flight-member-select').innerHTML = TRIP_MEMBERS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  box.scrollIntoView({ behavior:'smooth' });
+}
+window.openFlightEditor = openFlightEditor;
+
+function saveFlightRowCloud() {
+  const typeMode = document.getElementById('flight-type-mode').value;
+  const name = document.getElementById('flight-member-select').value;
+  col(typeMode==='arrival'?'arrivals':'departures').doc(name).set({
+    no: document.getElementById('flight-input-no').value.trim() || '--',
+    timestamp: document.getElementById('flight-input-time').value
+  }).then(() => {
+    document.getElementById('flight-input-no').value='';
+    document.getElementById('flight-input-time').value='';
+    document.getElementById('flight-editor-box').style.display='none';
+  });
+}
+window.saveFlightRowCloud = saveFlightRowCloud;
+
+function formatDT(isoStr) {
+  if(!isoStr) return '未填寫';
+  try { const d=new Date(isoStr); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+  catch(e) { return isoStr; }
+}
+
+function streamFlights() {
+  col('arrivals').onSnapshot(snap => {
+    let html = '';
+    TRIP_MEMBERS.forEach(m => {
+      let d={no:'-',timestamp:''}; snap.forEach(s=>{ if(s.id===m) d=s.data(); });
+      html+=`<tr><td class="py-2 font-bold text-amber-300">${m}</td><td class="py-2 font-mono text-zinc-300">${d.no}</td><td class="py-2 font-mono text-zinc-100">${formatDT(d.timestamp)}</td></tr>`;
+    });
+    document.getElementById('arrival-display-list').innerHTML = html;
+  });
+  col('departures').onSnapshot(snap => {
+    let html='';
+    TRIP_MEMBERS.forEach(m => {
+      let d={no:'-',timestamp:''}; snap.forEach(s=>{ if(s.id===m) d=s.data(); });
+      html+=`<tr><td class="py-2 font-bold text-pink-400">${m}</td><td class="py-2 font-mono text-zinc-300">${d.no}</td><td class="py-2 font-mono text-zinc-100">${formatDT(d.timestamp)}</td></tr>`;
+    });
+    document.getElementById('departure-display-list').innerHTML = html;
+  });
+}
+
+// ─── Expenses ───
+function initBillForm() {
+  document.getElementById('edit-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('edit-paid-by').innerHTML = TRIP_MEMBERS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  const box = document.getElementById('split-shares-container');
+  box.innerHTML = TRIP_MEMBERS.map(m=>`
+    <div class="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-gray-100">
+      <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+        <input type="checkbox" data-member-check="${m}" checked class="member-split-checkbox w-4 h-4 text-pink-600 rounded">
+        <span>${m}</span>
+      </label>
+      <div class="flex items-center gap-1">
+        <span class="text-[10px] text-gray-400">${CURRENCY}</span>
+        <input type="number" step="0.01" data-member-weight="${m}" class="split-weight-node w-20 p-1.5 bg-gray-50 border border-gray-200 rounded-lg text-right text-xs text-pink-600 font-mono" value="0.00">
+      </div>
+    </div>
+  `).join('');
+  document.querySelectorAll('.split-weight-node').forEach(i=>i.addEventListener('input',sumWeightNodes));
+}
+
+function calculateEqualSplit() {
+  const total = parseFloat(document.getElementById('edit-amount').value)||0;
+  const checked = document.querySelectorAll('.member-split-checkbox:checked');
+  document.querySelectorAll('.split-weight-node').forEach(i=>i.value='0.00');
+  if(!checked.length||total<=0){ sumWeightNodes(); return; }
+  const share = total/checked.length;
+  checked.forEach(cb=>{ const w=document.querySelector(`[data-member-weight="${cb.getAttribute('data-member-check')}"]`); if(w) w.value=share.toFixed(2); });
+  sumWeightNodes();
+}
+window.calculateEqualSplit = calculateEqualSplit;
+
+function sumWeightNodes() {
+  let a=0; document.querySelectorAll('.split-weight-node').forEach(i=>a+=parseFloat(i.value)||0);
+  document.getElementById('split-total-assigned').innerText = `${CURRENCY} ${a.toFixed(2)}`;
+}
+
+function clearBillForm() {
+  document.getElementById('edit-id').value=''; document.getElementById('edit-store').value=''; document.getElementById('edit-items').value=''; document.getElementById('edit-amount').value='0.00'; document.getElementById('edit-cat').value='Food'; document.getElementById('edit-date').value=new Date().toISOString().split('T')[0];
+  document.querySelectorAll('.member-split-checkbox').forEach(cb=>cb.checked=true); document.querySelectorAll('.split-weight-node').forEach(i=>i.value='0.00'); sumWeightNodes();
+}
+window.clearBillForm = clearBillForm;
+
+function saveBillFormCloud() {
+  const id=document.getElementById('edit-id').value; let splits={};
+  document.querySelectorAll('.split-weight-node').forEach(i=>{ splits[i.getAttribute('data-member-weight')]=parseFloat(i.value)||0; });
+  const pkg={ storeName:document.getElementById('edit-store').value.trim()||'Expense', items:document.getElementById('edit-items').value.trim()||'', amountAUD:parseFloat(document.getElementById('edit-amount').value)||0, category:document.getElementById('edit-cat').value.trim()||'Food', date:document.getElementById('edit-date').value, paidBy:document.getElementById('edit-paid-by').value, splits };
+  if(id) col('expenses').doc(id).set(pkg,{merge:true}).then(clearBillForm);
+  else col('expenses').add(pkg).then(clearBillForm);
+}
+window.saveBillFormCloud = saveBillFormCloud;
+
+function streamExpenses() {
+  col('expenses').onSnapshot(snap => {
+    currentExpenses=[]; snap.forEach(d=>currentExpenses.push({id:d.id,...d.data()}));
+    document.getElementById('dash-total').innerText = `${CURRENCY} ${currentExpenses.reduce((s,e)=>s+(e.amountAUD||0),0).toFixed(2)}`;
+    const container=document.getElementById('expense-list');
+    if(!currentExpenses.length){ container.innerHTML=`<li class="p-5 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-xl">目前沒有消費帳目</li>`; renderSettlement(); return; }
+    container.innerHTML=[...currentExpenses].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(exp=>{
+      const sd=Object.entries(exp.splits||{}).map(([n,v])=>v>0?`<span class="bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded text-[9px] font-mono">${n}: $${parseFloat(v).toFixed(1)}</span>`:'').join(' ');
+      return `<li class="bg-white border border-gray-200 p-4 rounded-2xl flex justify-between items-center shadow-sm"><div class="space-y-1.5 flex-1 min-w-0 pr-2"><div class="flex items-center gap-2"><span class="font-bold text-slate-900 text-xs truncate">${exp.storeName}</span><span class="text-[8px] font-bold uppercase text-pink-600 bg-pink-50 px-2 py-0.5 rounded border border-pink-100">${exp.category}</span></div><p class="text-[11px] text-gray-500 truncate font-mono">${exp.items}</p><div class="flex flex-wrap items-center gap-1.5 pt-0.5"><span class="text-[9px] text-gray-400">代付 <strong>${exp.paidBy}</strong></span><div class="flex flex-wrap gap-1">${sd}</div></div></div><div class="text-right space-y-2"><p class="text-sm font-black text-slate-900 font-mono">${CURRENCY} ${parseFloat(exp.amountAUD).toFixed(2)}</p><div class="flex gap-3 text-[10px] font-bold uppercase"><button onclick="window.initiateBillTweak('${exp.id}')" class="text-pink-600">調整</button><button onclick="window.nukeBillLog('${exp.id}')" class="text-gray-400 hover:text-red-500">刪除</button></div></div></li>`;
+    }).join('');
+    renderSettlement();
+  });
+}
+
+function renderSettlement() {
+  let paid={},owe={};
+  TRIP_MEMBERS.forEach(m=>{ paid[m]=0; owe[m]=0; });
+  currentExpenses.forEach(exp=>{
+    if(TRIP_MEMBERS.includes(exp.paidBy)) paid[exp.paidBy]+=parseFloat(exp.amountAUD)||0;
+    Object.entries(exp.splits||{}).forEach(([m,v])=>{ if(TRIP_MEMBERS.includes(m)) owe[m]+=parseFloat(v)||0; });
+  });
+  document.getElementById('settlement-matrix-box').innerHTML=TRIP_MEMBERS.map(m=>{
+    const net=paid[m]-owe[m];
+    let badge='';
+    if(net>0.01) badge=`<div class="flex items-center gap-1.5 text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl"><span>應收回</span><span class="font-mono">${CURRENCY} ${net.toFixed(2)}</span></div>`;
+    else if(net<-0.01) badge=`<div class="flex items-center gap-1.5 text-xs font-black text-pink-600 bg-pink-50 border border-pink-100 px-3 py-1.5 rounded-xl"><span>應補繳</span><span class="font-mono">${CURRENCY} ${Math.abs(net).toFixed(2)}</span></div>`;
+    else badge=`<div class="text-xs font-bold text-gray-400 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">已兩清</div>`;
+    return `<div class="flex items-center justify-between bg-gray-50/50 p-3 rounded-2xl border border-gray-100"><div><h4 class="text-xs font-black text-slate-900">${m}</h4><p class="text-[9px] text-gray-400 mt-0.5 font-mono">代付 $${paid[m].toFixed(1)} · 應付 $${owe[m].toFixed(1)}</p></div>${badge}</div>`;
+  }).join('');
+}
+
+function toggleSettlement() {
+  settlementOpen=!settlementOpen;
+  const body=document.getElementById('settlement-body');
+  const ch=document.getElementById('settlement-chevron');
+  body.classList.toggle('closed',!settlementOpen); body.classList.toggle('open',settlementOpen);
+  ch.style.transform=settlementOpen?'rotate(180deg)':'';
+}
+window.toggleSettlement=toggleSettlement;
+
+window.initiateBillTweak=function(id){
+  const t=currentExpenses.find(e=>e.id===id); if(!t) return;
+  document.getElementById('edit-id').value=t.id; document.getElementById('edit-store').value=t.storeName||''; document.getElementById('edit-items').value=t.items||''; document.getElementById('edit-amount').value=t.amountAUD||0; document.getElementById('edit-cat').value=t.category||'Food'; document.getElementById('edit-date').value=t.date||''; document.getElementById('edit-paid-by').value=t.paidBy||TRIP_MEMBERS[0];
+  TRIP_MEMBERS.forEach(m=>{ const a=t.splits?.[m]||0; document.querySelector(`[data-member-check="${m}"]`).checked=(a>0); document.querySelector(`[data-member-weight="${m}"]`).value=a.toFixed(2); });
+  sumWeightNodes(); switchTab('tracker'); window.scrollTo({top:0,behavior:'smooth'});
+};
+window.nukeBillLog=function(id){ if(confirm('確定刪除？')) col('expenses').doc(id).delete(); };
+
+// ─── Itinerary ───
+function buildItineraryDaySlots() {
+  const start = TRIP_META.startDate;
+  const end = TRIP_META.endDate;
+  const container = document.getElementById('itinerary-segmented-days');
+  const dateSelect = document.getElementById('edit-itin-date');
+
+  if(!start||!end) {
+    container.innerHTML='<p class="text-xs text-gray-400 text-center py-4">旅程尚未設定日期</p>';
+    return;
+  }
+
+  const days = [];
+  let cur = new Date(start);
+  const endD = new Date(end);
+  while(cur <= endD) { days.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate()+1); }
+
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  container.innerHTML = days.map((d,i) => {
+    const dateObj = new Date(d);
+    const mn = String(dateObj.getMonth()+1).padStart(2,'0');
+    const dd = String(dateObj.getDate()).padStart(2,'0');
+    return `
+      <div class="bg-white border border-gray-200 rounded-2xl p-4 shadow-xs space-y-2">
+        <h4 class="text-xs font-black text-slate-900 border-b border-gray-100 pb-2">📅 ${mn} / ${dd} <span class="text-pink-500 font-normal ml-1">${dayNames[dateObj.getDay()]} (Day ${i+1})</span></h4>
+        <div id="day-box-${d}" class="space-y-2"></div>
+      </div>`;
+  }).join('');
+
+  dateSelect.innerHTML = days.map((d,i) => {
+    const dateObj = new Date(d);
+    const mn = String(dateObj.getMonth()+1).padStart(2,'0');
+    const dd = String(dateObj.getDate()).padStart(2,'0');
+    return `<option value="${d}">${mn}月${dd}日 - Day ${i+1}</option>`;
+  }).join('');
+}
+
+function streamItinerary() {
+  col('itinerary').onSnapshot(snap => {
+    currentItinerary=[]; snap.forEach(d=>currentItinerary.push({id:d.id,...d.data()}));
+    refreshItineraryUI();
+  });
+}
+function refreshItineraryUI() {
+  const start=TRIP_META.startDate, end=TRIP_META.endDate;
+  if(!start||!end) return;
+  const days=[]; let cur=new Date(start); while(cur<=new Date(end)){ days.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate()+1); }
+  days.forEach(d=>{ const b=document.getElementById(`day-box-${d}`); if(b) b.innerHTML=''; });
+  const styles={Breakfast:"bg-emerald-50 text-emerald-600",Lunch:"bg-teal-50 text-teal-600",Dinner:"bg-rose-50 text-rose-600",Activity:"bg-pink-50 text-pink-600"};
+  let counts={}; days.forEach(d=>counts[d]=0);
+  [...currentItinerary].sort((a,b)=>(a.timeStr||'').localeCompare(b.timeStr||'')).forEach(n=>{
+    const box=document.getElementById(`day-box-${n.dateStr}`);
+    if(box){ counts[n.dateStr]++; box.insertAdjacentHTML('beforeend',`<div class="bg-gray-50 border border-gray-100 rounded-xl p-3" onclick="window.triggerEditItineraryNode('${n.id}')"><div class="flex justify-between items-center text-xs"><div class="flex items-center gap-2"><span class="bg-slate-900 text-white font-mono font-bold px-2 py-0.5 rounded text-[10px]">${n.timeStr||'--:--'}</span><h5 class="font-bold text-slate-900 truncate max-w-[150px]">${n.hubLocation}</h5></div><span class="text-[8px] font-black px-2 py-0.5 rounded-full ${styles[n.nodeType]||'bg-gray-100'}">${n.nodeType}</span></div>${n.activityDetails?`<p class="text-[11px] text-gray-500 mt-1.5 whitespace-pre-line pl-1">${n.activityDetails}</p>`:''}</div>`); }
+  });
+  days.forEach(d=>{ if(counts[d]===0){ const b=document.getElementById(`day-box-${d}`); if(b) b.innerHTML='<p class="text-[11px] text-gray-400 italic py-1 text-center">今天沒有安排</p>'; } });
+}
+
+function openItineraryEditorModal(id) {
+  const modal=document.getElementById('itinerary-editor'); modal.style.display='block';
+  if(id){
+    document.getElementById('itin-editor-title').innerText='修改行程'; document.getElementById('edit-itin-id').value=id; document.getElementById('btn-delete-itin').style.display='block';
+    const n=currentItinerary.find(i=>i.id===id);
+    if(n){ document.getElementById('edit-itin-date').value=n.dateStr||TRIP_META.startDate; document.getElementById('edit-itin-time').value=n.timeStr||''; document.getElementById('edit-itin-type').value=n.nodeType||'Activity'; document.getElementById('edit-itin-location').value=n.hubLocation||''; document.getElementById('edit-itin-details').value=n.activityDetails||''; }
+  } else {
+    document.getElementById('itin-editor-title').innerText='新增活動'; document.getElementById('edit-itin-id').value=''; document.getElementById('btn-delete-itin').style.display='none';
+    document.getElementById('edit-itin-date').value=TRIP_META.startDate||''; document.getElementById('edit-itin-time').value='09:00'; document.getElementById('edit-itin-type').value='Activity'; document.getElementById('edit-itin-location').value=''; document.getElementById('edit-itin-details').value='';
+  }
+  modal.scrollIntoView({behavior:'smooth'});
+}
+window.openItineraryEditorModal=openItineraryEditorModal; window.triggerEditItineraryNode=openItineraryEditorModal;
+function closeItineraryEditor(){ document.getElementById('itinerary-editor').style.display='none'; }
+window.closeItineraryEditor=closeItineraryEditor;
+function saveItineraryNode(){
+  const id=document.getElementById('edit-itin-id').value;
+  const payload={dateStr:document.getElementById('edit-itin-date').value,timeStr:document.getElementById('edit-itin-time').value,nodeType:document.getElementById('edit-itin-type').value,hubLocation:document.getElementById('edit-itin-location').value.trim()||'未填地點',activityDetails:document.getElementById('edit-itin-details').value.trim()||''};
+  if(id) col('itinerary').doc(id).set(payload,{merge:true}).then(closeItineraryEditor);
+  else col('itinerary').add(payload).then(closeItineraryEditor);
+}
+window.saveItineraryNode=saveItineraryNode;
+function deleteItineraryNode(){ const id=document.getElementById('edit-itin-id').value; if(confirm('確定刪除？')) col('itinerary').doc(id).delete().then(closeItineraryEditor); }
+window.deleteItineraryNode=deleteItineraryNode;
+
+// ─── Packing List ───
+const PACK_CAT_LABELS = { essential:'⚡ 必帶', medical:'💊 醫藥急救', clothes:'👕 衣物', electronics:'🔌 3C 電器', toiletries:'🧴 盥洗保養', docs:'📄 證件文件', other:'📦 其他' };
+const PACK_CAT_COLORS = { essential:'bg-amber-50 text-amber-600 border-amber-100', medical:'bg-red-50 text-red-600 border-red-100', clothes:'bg-blue-50 text-blue-600 border-blue-100', electronics:'bg-violet-50 text-violet-600 border-violet-100', toiletries:'bg-teal-50 text-teal-600 border-teal-100', docs:'bg-slate-100 text-slate-600 border-slate-200', other:'bg-gray-100 text-gray-600 border-gray-200' };
+
+function togglePackForm(){ const el=document.getElementById('pack-editor'); el.style.display=el.style.display==='none'?'block':'none'; }
+window.togglePackForm=togglePackForm;
+
+function savePackItem(){
+  const name=document.getElementById('pack-item-name').value.trim();
+  if(!name){ alert('請填寫物品名稱'); return; }
+  // rebuild owner select
+  document.getElementById('pack-item-owner').innerHTML=TRIP_MEMBERS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  col('packing').add({ name, owner:document.getElementById('pack-item-owner').value, category:document.getElementById('pack-item-cat').value||'other', packed:false, timestamp:Date.now() }).then(()=>{
+    document.getElementById('pack-item-name').value=''; togglePackForm();
+  });
+}
+window.savePackItem=savePackItem;
+
+function setPackFilter(cat){
+  activePackFilter=cat;
+  document.querySelectorAll('.pack-filter-btn').forEach(btn=>{
+    const active=btn.id===`pack-filter-${cat}`;
+    btn.className=`pack-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border transition whitespace-nowrap ${active?'border-pink-200 bg-pink-500 text-white':'border-gray-200 bg-white text-gray-500'}`;
+  });
+  renderPackList();
+}
+window.setPackFilter=setPackFilter;
+
+function streamPackItems(){
+  // 初始化 owner select
+  document.getElementById('pack-item-owner').innerHTML = TRIP_MEMBERS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  col('packing').onSnapshot(snap=>{
+    currentPackItems=[]; snap.forEach(d=>currentPackItems.push({id:d.id,...d.data()}));
+    renderPackList();
+  });
+}
+
+function renderPackList(){
+  const filtered = activePackFilter==='all' ? currentPackItems : currentPackItems.filter(i=>i.category===activePackFilter);
+  const packed = currentPackItems.filter(i=>i.packed).length;
+  const total = currentPackItems.length;
+  document.getElementById('pack-progress-text').innerText=`${packed} / ${total}`;
+  document.getElementById('pack-progress-bar').style.width = total>0?`${Math.round(packed/total*100)}%`:'0%';
+
+  const container=document.getElementById('pack-list-container');
+  if(!filtered.length){ container.innerHTML=`<div class="p-5 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-2xl">${activePackFilter==='all'?'清單是空的，新增物品開始打包！':'這個分類目前沒有物品'}</div>`; return; }
+
+  // 按 packed 排序（未打包在上）
+  const sorted=[...filtered].sort((a,b)=>a.packed-b.packed||(b.timestamp||0)-(a.timestamp||0));
+  container.innerHTML=sorted.map(item=>{
+    const catColor=PACK_CAT_COLORS[item.category]||PACK_CAT_COLORS.other;
+    const catLabel=PACK_CAT_LABELS[item.category]||'其他';
+    return `
+      <div class="pack-row bg-white border ${item.packed?'border-emerald-200 bg-emerald-50/30':'border-gray-200'} rounded-2xl p-3.5 flex items-center gap-3 shadow-sm">
+        <button onclick="window.togglePackCheck('${item.id}',${item.packed})" type="button"
+          class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition
+          ${item.packed?'bg-emerald-500 border-emerald-500 text-white':'border-gray-300 bg-white text-transparent hover:border-pink-400'}">
+          ${item.packed?'✓':'·'}
+        </button>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <p class="text-xs font-bold text-slate-900 ${item.packed?'line-through text-gray-400':''}">${item.name}</p>
+            <span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full border ${catColor}">${catLabel}</span>
+          </div>
+          <p class="text-[9px] text-gray-400 mt-0.5">負責人: <span class="font-bold text-slate-600">${item.owner}</span></p>
+        </div>
+        <button onclick="window.deletePackItem('${item.id}')" type="button" class="text-gray-300 hover:text-red-400 text-sm px-1">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+window.togglePackCheck=function(id,cur){ col('packing').doc(id).update({packed:!cur}); };
+window.deletePackItem=function(id){ if(confirm('確定刪除？')) col('packing').doc(id).delete(); };
+
+// ─── Wishlist ───
+const WISH_CATS = {
+  restaurant:{label:'🍽️ 餐廳美食',color:'bg-orange-50 text-orange-600 border-orange-100'},
+  activity:{label:'🎯 活動體驗',color:'bg-blue-50 text-blue-600 border-blue-100'},
+  attraction:{label:'🗺️ 景點打卡',color:'bg-emerald-50 text-emerald-600 border-emerald-100'},
+  shopping:{label:'🛍️ 購物血拼',color:'bg-purple-50 text-purple-600 border-purple-100'},
+  other:{label:'✨ 其他',color:'bg-gray-100 text-gray-600 border-gray-200'},
+};
+
+function setWishFilter(cat){
+  activeWishFilter=cat;
+  document.querySelectorAll('.wish-filter-btn').forEach(btn=>{
+    const active=btn.id===`wish-filter-${cat}`;
+    btn.className=`wish-filter-btn flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full border transition whitespace-nowrap ${active?'border-pink-200 bg-pink-500 text-white':'border-gray-200 bg-white text-gray-500'}`;
+  });
+  streamWishesRender();
+}
+window.setWishFilter=setWishFilter;
+
+function toggleWishForm(){ const el=document.getElementById('wish-editor-panel'); el.style.display=el.style.display==='none'?'block':'none'; }
+window.toggleWishForm=toggleWishForm;
+
+function saveWishNodeToCloud(){
+  const title=document.getElementById('wish-field-title').value.trim();
+  if(!title){ alert('請填寫願望名稱！'); return; }
+  col('wishes').add({ title, category:document.getElementById('wish-field-cat').value||'other', link:document.getElementById('wish-field-link').value.trim(), img:document.getElementById('wish-field-img').value.trim(), author:document.getElementById('wish-field-author').value.trim()||'有人', approvedInPlan:false, votes:[], timestamp:Date.now() }).then(()=>{
+    ['wish-field-title','wish-field-link','wish-field-img','wish-field-author'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('wish-field-cat').value='restaurant';
+    toggleWishForm();
+  });
+}
+window.saveWishNodeToCloud=saveWishNodeToCloud;
+
+function streamWishes(){ col('wishes').onSnapshot(snap=>{ currentWishes=[]; snap.forEach(d=>currentWishes.push({id:d.id,...d.data()})); currentWishes.sort((a,b)=>b.timestamp-a.timestamp); streamWishesRender(); }); }
+
+function streamWishesRender(){
+  const container=document.getElementById('wishlist-cards-container');
+  const filtered=activeWishFilter==='all'?currentWishes:currentWishes.filter(w=>(w.category||'other')===activeWishFilter);
+  if(!filtered.length){ container.innerHTML=`<div class="p-6 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-xl shadow-sm">${activeWishFilter==='all'?'許願池空空如也 🍌':'這個分類目前沒有願望'}</div>`; return; }
+  container.innerHTML=filtered.map(wish=>{
+    const cat=WISH_CATS[wish.category||'other']||WISH_CATS.other;
+    const isUrl=wish.link&&(wish.link.startsWith('http://')||wish.link.startsWith('https://'));
+    const linkBtn=isUrl?`<a href="${wish.link}" target="_blank" onclick="event.stopPropagation()" class="inline-block mt-1 text-[10px] text-pink-600 font-bold bg-pink-50 border border-pink-100 px-2 py-0.5 rounded-md">🔗 打開連結</a>`:'';
+    const imgBox=wish.img?`<img src="${wish.img}" class="w-full h-24 object-cover rounded-xl mt-2 border border-gray-100">`:'';
+    const votes=wish.votes||[];
+    const pills=TRIP_MEMBERS.map(m=>{ const voted=votes.includes(m); return `<button type="button" onclick="window.toggleVote('${wish.id}','${m}',${voted})" class="vote-btn text-[9px] font-bold px-2 py-0.5 rounded-full border transition ${voted?'bg-pink-500 text-white border-pink-400':'bg-gray-50 text-gray-400 border-gray-200 hover:border-pink-300 hover:text-pink-500'}">${voted?'❤️ ':''}${m}</button>`; }).join('');
+    return `<div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm space-y-2.5"><div class="flex justify-between items-start gap-2"><div class="flex-1 min-w-0"><div class="flex items-center gap-1.5 mb-1"><span class="text-[8px] font-black px-2 py-0.5 rounded-full border ${cat.color}">${cat.label}</span></div><h4 class="text-xs font-bold text-slate-900 leading-snug">${wish.title}</h4><p class="text-[9px] text-gray-400 mt-0.5">許願人 <span class="text-slate-600 font-medium">${wish.author}</span></p>${linkBtn}</div><div class="flex flex-col items-center bg-pink-50 border border-pink-100 rounded-xl px-2.5 py-2 min-w-[44px]"><span class="text-base font-black text-pink-500 leading-none">${votes.length}</span><span class="text-[8px] text-pink-400 font-bold mt-0.5">票</span></div></div>${imgBox}<div class="pt-2 border-t border-gray-100 space-y-2"><p class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">點名支持 👇</p><div class="flex flex-wrap gap-1.5">${pills}</div></div><div class="pt-2 border-t border-gray-100 flex justify-between items-center text-[10px]"><label class="flex items-center gap-1.5 font-bold text-gray-500 cursor-pointer"><input type="checkbox" ${wish.approvedInPlan?'checked':''} onclick="window.toggleWishStatus('${wish.id}',${wish.approvedInPlan})" class="w-4 h-4 text-pink-500 border-gray-300 rounded"><span>已排進行程 ✔️</span></label><button onclick="window.nukeWishNode('${wish.id}')" class="text-gray-300 hover:text-red-500">✕ 撤銷</button></div></div>`;
+  }).join('');
+}
+
+window.toggleVote=function(wishId,memberName,alreadyVoted){
+  const wish=currentWishes.find(w=>w.id===wishId); if(!wish) return;
+  let votes=[...(wish.votes||[])];
+  if(alreadyVoted) votes=votes.filter(v=>v!==memberName);
+  else if(!votes.includes(memberName)) votes.push(memberName);
+  col('wishes').doc(wishId).update({votes});
+};
+window.toggleWishStatus=function(id,cur){ col('wishes').doc(id).update({approvedInPlan:!cur}); };
+window.nukeWishNode=function(id){ if(confirm('確定撤銷？')) col('wishes').doc(id).delete(); };
+
+// ─── 啟動 ───
+initApp();
+</script>
+</body>
+</html>
+ENDOFFILE
+echo "Done: $(wc -l < /home/claude/tripnana.html) lines"
