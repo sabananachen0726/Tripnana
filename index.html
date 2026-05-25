@@ -735,14 +735,28 @@ function saveHotelInfo() {
 }
 window.saveHotelInfo = saveHotelInfo;
 function streamHotel() {
-  col('meta').doc('hotel').onSnapshot(d => {
-    if(d.exists()) {
-      document.getElementById('hotel-display-name').innerText = d.data().name || '點擊設定飯店名稱';
-      document.getElementById('hotel-display-address').innerText = d.data().address || '目前尚未提供地址';
-      document.getElementById('input-hotel-name').value = d.data().name || '';
-      document.getElementById('input-hotel-address').value = d.data().address || '';
-    }
-  });
+  if (!TRIP_ID) return;
+
+  // 使用最保險的絕對監聽路徑，並且修正了 exists() 的括號錯誤！
+  db.collection('tripnana_trips')
+    .doc(TRIP_ID)
+    .collection('meta')
+    .doc('hotel')
+    .onSnapshot(d => {
+      // 關鍵修正：這裡改用沒有括號的 d.exists 屬性判斷
+      if (d.exists) {
+        const hotelData = d.data();
+        // 抓取雲端資料，並強行刷進網頁的 HTML 標籤裡
+        document.getElementById('hotel-display-name').innerText = hotelData.name || '點擊設定飯店名稱';
+        document.getElementById('hotel-display-address').innerText = hotelData.address || '目前尚未提供地址';
+        
+        // 順便把輸入框裡面的預設文字也填好，這樣下次點「修改」時才不用重新打字
+        document.getElementById('input-hotel-name').value = hotelData.name || '';
+        document.getElementById('input-hotel-address').value = hotelData.address || '';
+      }
+    }, error => {
+      console.error("即時監聽飯店失敗:", error);
+    });
 }
 
 // ─── Flights ───
