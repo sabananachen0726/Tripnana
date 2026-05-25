@@ -705,7 +705,33 @@ function openHotelEditor() { document.getElementById('hotel-editor-panel').style
 function closeHotelEditor() { document.getElementById('hotel-editor-panel').style.display='none'; }
 window.openHotelEditor = openHotelEditor; window.closeHotelEditor = closeHotelEditor;
 function saveHotelInfo() {
-  col('meta').doc('hotel').set({ name: document.getElementById('input-hotel-name').value.trim(), address: document.getElementById('input-hotel-address').value.trim() }).then(closeHotelEditor);
+  const hotelName = document.getElementById('input-hotel-name').value.trim();
+  const hotelAddress = document.getElementById('input-hotel-address').value.trim();
+
+  // 確保真的有選中旅程
+  if (!TRIP_ID) {
+    alert("找不到當前旅程 ID，請重新整理頁面！");
+    return;
+  }
+
+  // 改用最保險的絕對路徑直接寫入 Firebase，繞過原本 col() 的潛在語法衝突
+  db.collection('tripnana_trips')
+    .doc(TRIP_ID)
+    .collection('meta')
+    .doc('hotel')
+    .set({
+      name: hotelName,
+      address: hotelAddress,
+      updatedAt: Date.now() // 加入時間戳記，能讓雲端寫入更穩定
+    })
+    .then(() => {
+      console.log("飯店資訊成功同步至雲端！");
+      closeHotelEditor(); // 儲存成功後自動關閉輸入框
+    })
+    .catch((error) => {
+      console.error("雲端儲存失敗，詳細原因:", error);
+      alert("儲存失敗！請檢查你的 Firebase Rules 權限是否有對 tripnana_trips 開放讀寫。");
+    });
 }
 window.saveHotelInfo = saveHotelInfo;
 function streamHotel() {
