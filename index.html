@@ -575,9 +575,13 @@ window.lockTrip = lockTrip; window.unlockTrip = unlockTrip;
 
 // ─── 進入旅程 ───
 function enterTrip(tripId) {
-  db.collection('tripnana_trips').doc(tripId).get().then(doc => {
-    if(!doc.exists()) { alert(`找不到旅程「${tripId}」`); return; }
-    const data = doc.data();
+    db.collection('tripnana_trips').doc(tripId).get().then(doc => {
+        // 注意這裡改成沒有括號的 .exists
+        if(!doc.exists) { 
+            alert(`找不到旅程「${tripId}」`);
+            return;
+        }
+        const data = doc.data();
 
     if(data.locked) {
       // 封存畫面
