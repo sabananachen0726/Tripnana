@@ -52,8 +52,7 @@
       <div class="p-6 text-center text-xs text-gray-400 bg-white border border-gray-200 rounded-2xl">載入中...</div>
     </div>
 
-    <!-- 新增旅程 Modal -->
-    <div id="new-trip-modal" class="bg-white border-2 border-pink-400 p-5 rounded-2xl shadow-xl space-y-3" style="display:none">
+<div id="new-trip-modal" class="bg-white border-2 border-pink-400 p-5 rounded-2xl shadow-xl space-y-3" style="display:none">
       <h3 class="text-xs font-black uppercase text-pink-600">✨ 建立新旅程</h3>
       <div>
         <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">旅程 ID（英文＋數字，不能有空格）</label>
@@ -90,9 +89,39 @@
         <button onclick="createNewTrip()" type="button" class="flex-1 bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase">🍌 建立旅程</button>
         <button onclick="document.getElementById('new-trip-modal').style.display='none'" type="button" class="bg-gray-100 text-gray-500 px-4 rounded-xl text-xs">取消</button>
       </div>
+    </div> <div id="edit-trip-modal" class="bg-white border-2 border-blue-400 p-5 rounded-2xl shadow-xl space-y-3 mt-4" style="display:none">
+      <h3 class="text-xs font-black uppercase text-blue-600">✏️ 修改旅程資料</h3>
+      <input type="hidden" id="edit-trip-id-hidden">
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">旅程名稱</label>
+        <input type="text" id="edit-trip-name" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">目的地城市（天氣用）</label>
+        <input type="text" id="edit-trip-city" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">出發日</label>
+          <input type="date" id="edit-trip-start" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        </div>
+        <div>
+          <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">回程日</label>
+          <input type="date" id="edit-trip-end" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+        </div>
+      </div>
+      <div>
+        <label class="block text-[9px] font-bold text-gray-400 uppercase mb-1">成員名單（用逗號隔開）</label>
+        <input type="text" id="edit-trip-members" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-slate-900">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="updateTripDetails()" type="button" class="flex-1 bg-blue-600 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase">💾 儲存修改</button>
+        <button onclick="document.getElementById('edit-trip-modal').style.display='none'" type="button" class="bg-gray-100 text-gray-500 px-4 rounded-xl text-xs">取消</button>
+      </div>
     </div>
-  </div>
-</div>
+
+
+  </div> </div> ```
 
 <!-- ═══════════════════════════════════════════
      MAIN APP — 旅程內頁
@@ -532,9 +561,21 @@ function loadTripList() {
             <span class="text-gray-300 text-lg">›</span>
           </div>
           <div class="mt-2 pt-2 border-t border-gray-100 flex justify-between items-center">
-            <p class="text-[9px] text-gray-400 font-mono">ID: ${doc.id}</p>
-            ${!isLocked ? `<button onclick="event.stopPropagation(); lockTrip('${doc.id}')" type="button" class="text-[9px] text-amber-500 font-bold hover:text-amber-700">🔒 封存旅程</button>` : `<button onclick="event.stopPropagation(); unlockTrip('${doc.id}')" type="button" class="text-[9px] text-gray-400 font-bold hover:text-slate-900">解鎖</button>`}
-          </div>
+  <p class="text-[9px] text-gray-400 font-mono">ID: ${doc.id}</p>
+  <div class="flex items-center gap-3">
+    <!-- ✏️ 編輯按鈕 -->
+    <button onclick="event.stopPropagation(); openEditTripModal('${doc.id}')" type="button" class="text-[9px] text-blue-500 font-bold hover:text-blue-700">✏️ 編輯</button>
+    
+    <!-- 🔒 封存按鈕 -->
+    ${!isLocked ? 
+      `<button onclick="event.stopPropagation(); lockTrip('${doc.id}')" type="button" class="text-[9px] text-amber-500 font-bold hover:text-amber-700">🔒 封存</button>` : 
+      `<button onclick="event.stopPropagation(); unlockTrip('${doc.id}')" type="button" class="text-[9px] text-gray-400 font-bold hover:text-slate-900">解鎖</button>`
+    }
+    
+    <!-- 🗑️ 刪除按鈕 -->
+    <button onclick="event.stopPropagation(); deleteTrip('${doc.id}')" type="button" class="text-[9px] text-gray-300 font-bold hover:text-red-500">🗑️ 刪除</button>
+  </div>
+</div>
         </div>
       `;
     }).join('');
@@ -568,6 +609,61 @@ function createNewTrip() {
     });
   });
 }
+
+  // ✨ 1. 打開編輯視窗，並把舊資料自動帶入進去
+function openEditTripModal(id) {
+  db.collection('tripnana_trips').doc(id).get().then(doc => {
+    if (!doc.exists) return;
+    const d = doc.data();
+    
+    // 把目前的舊資料塞進輸入框
+    document.getElementById('edit-trip-id-hidden').value = id;
+    document.getElementById('edit-trip-name').value = d.name || '';
+    document.getElementById('edit-trip-city').value = d.city || '';
+    document.getElementById('edit-trip-start').value = d.startDate || '';
+    document.getElementById('edit-trip-end').value = d.endDate || '';
+    document.getElementById('edit-trip-members').value = (d.members || []).join(', ');
+    
+    // 顯示視窗並平滑滾動到它
+    document.getElementById('edit-trip-modal').style.display = 'block';
+    document.getElementById('edit-trip-modal').scrollIntoView({ behavior: 'smooth' });
+  });
+}
+window.openEditTripModal = openEditTripModal;
+
+// ✨ 2. 把修改完的新時間、新資料送回 Firebase 雲端儲存
+function updateTripDetails() {
+  const id = document.getElementById('edit-trip-id-hidden').value;
+  const name = document.getElementById('edit-trip-name').value.trim();
+  const city = document.getElementById('edit-trip-city').value.trim();
+  const start = document.getElementById('edit-trip-start').value;
+  const end = document.getElementById('edit-trip-end').value;
+  const members = document.getElementById('edit-trip-members').value.split(',').map(m => m.trim()).filter(Boolean);
+
+  if (!name || members.length === 0) { alert('旅程名稱與成員不能空白！'); return; }
+
+  db.collection('tripnana_trips').doc(id).update({
+    name, city, startDate: start, endDate: end, members
+  }).then(() => {
+    document.getElementById('edit-trip-modal').style.display = 'none';
+    console.log(`旅程 ${id} 資料更新成功！`);
+  }).catch(err => {
+    console.error("更新旅程失敗:", err);
+  });
+}
+window.updateTripDetails = updateTripDetails;
+
+// ✨ 3. 一鍵刪除旅程（包含防誤觸二次確認）
+function deleteTrip(id) {
+  if (confirm(`⚠️ 警告：確定要永久刪除旅程「${id}」嗎？\n刪除後此動作將無法復原！`)) {
+    db.collection('tripnana_trips').doc(id).delete().then(() => {
+      alert('旅程已成功刪除！');
+    }).catch(err => {
+      console.error("刪除旅程失敗:", err);
+    });
+  }
+}
+window.deleteTrip = deleteTrip;
 
 function lockTrip(id) {
   if(confirm(`確定封存旅程？封存後朋友分享連結將無法進入。`)) {
